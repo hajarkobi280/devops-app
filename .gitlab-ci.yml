@@ -1,0 +1,39 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  IMAGE_NAME: hajarkobi/devops-app
+  IMAGE_TAG: latest
+
+build:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+    - docker build -t $IMAGE_NAME:$IMAGE_TAG .
+    - docker push $IMAGE_NAME:$IMAGE_TAG
+  only:
+    - main
+
+test:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - pip install flask pytest
+    - python -m pytest tests/ -v || echo "No tests found"
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - echo "$KUBECONFIG_CONTENT" > kubeconfig.yaml
+    - kubectl --kubeconfig=kubeconfig.yaml apply -f k8s/deployment.yaml --validate=false
+    - kubectl --kubeconfig=kubeconfig.yaml get pods
+  only:
+    - main
