@@ -1,0 +1,59 @@
+name: Deploy with Kind
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v4
+    
+    - name: Create Kind Cluster
+      uses: helm/kind-action@v1
+      with:
+        version: v0.20.0
+        node_image: kindest/node:v1.27.3
+        wait: 120s
+    
+    - name: Build Docker Image
+      run: |
+        docker build -t devops-app:latest .
+    
+    - name: Load Image to Kind
+      run: |
+        kind load docker-image devops-app:latest
+    
+    - name: Deploy
+      run: |
+        # Appliquer le déploiement
+        kubectl apply -f k8s/deployment.yaml
+        
+        # Attendre les pods
+        echo "Waiting for pods to be ready..."
+        kubectl wait --for=condition=ready pods --all --timeout=120s
+        
+        # Afficher le statut
+        kubectl get pods
+        kubectl get svc
+    
+    - name: Test
+      run: |
+        # Port forward
+        kubectl port-forward service/devops-app-service 8080:80 &
+        sleep 15
+        
+        # Tester
+        if curl -f http://localhost:8080; then
+          echo "✅ Deployment successful!"
+        else
+          echo "❌ Test failed"
+          kubectl logs -l app=devops-app
+          exit 1
+        fi
