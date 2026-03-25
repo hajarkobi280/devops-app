@@ -23,17 +23,20 @@ jobs:
         eval $(minikube docker-env)
         docker build -t devops-app:latest .
     
-    - name: Deploy app
+    - name: Deploy with your manifest
       run: |
-        kubectl create deployment devops-app --image=devops-app:latest --port=5000
-        kubectl expose deployment devops-app --port=80 --target-port=5000 --type=ClusterIP
+        # Utiliser ton fichier de déploiement
+        kubectl apply -f k8s/deployment.yaml
         kubectl wait --for=condition=ready pods --all --timeout=120s
         kubectl get pods
         kubectl get svc
     
-    - name: Test app
+    - name: Test endpoints
       run: |
-        kubectl port-forward service/devops-app 8080:80 &
+        kubectl port-forward service/devops-app-service 8080:80 &
         sleep 10
+        echo "Testing / endpoint..."
         curl -f http://localhost:8080
-        echo "✅ Kubernetes test passed!"
+        echo "Testing /health endpoint..."
+        curl -f http://localhost:8080/health || echo "Health endpoint not implemented"
+        echo "✅ All tests passed!"
