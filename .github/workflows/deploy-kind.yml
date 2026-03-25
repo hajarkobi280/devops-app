@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4  # v3 → v4
     
     - name: Setup kubectl
-      uses: azure/setup-kubectl@v4
+      uses: azure/setup-kubectl@v4  # déjà v4
     
     - name: Create Kind Cluster
       uses: helm/kind-action@v1
@@ -33,60 +33,24 @@ jobs:
       run: |
         kubectl cluster-info
         kubectl get nodes
-        kubectl get pods -A
     
     - name: Build Docker Image
       run: |
         docker build -t devops-app:latest .
-        docker images | grep devops-app
     
     - name: Load Image to Kind
       run: |
-        kind get clusters
         kind load docker-image devops-app:latest --name kind
     
     - name: Deploy
       run: |
-        # Appliquer le déploiement
         kubectl apply -f k8s/deployment.yaml
-        
-        # Attendre les pods
-        echo "Waiting for pods to be ready..."
         kubectl wait --for=condition=ready pods --all --timeout=180s
-        
-        # Afficher le statut
         kubectl get pods
         kubectl get svc
     
     - name: Test
       run: |
-        # Port forward
         kubectl port-forward service/devops-app-service 8080:80 &
         sleep 15
-        
-        # Tester avec retry
-        for i in {1..5}; do
-          if curl -f http://localhost:8080; then
-            echo "✅ Deployment successful!"
-            exit 0
-          fi
-          echo "Attempt $i failed, retrying..."
-          sleep 5
-        done
-        echo "❌ Test failed after 5 attempts"
-        kubectl logs -l app=devops-app
-        exit 1
-    
-    - name: Debug on failure
-      if: failure()
-      run: |
-        echo "=== Kind clusters ==="
-        kind get clusters
-        echo "=== Nodes ==="
-        kubectl get nodes -o wide
-        echo "=== All pods ==="
-        kubectl get pods -A
-        echo "=== Events ==="
-        kubectl get events --all-namespaces
-        echo "=== Pod details ==="
-        kubectl describe pods -l app=devops-app || echo "No pods found"
+        curl -f http://localhost:8080 && echo "✅ Deployment successful!"
