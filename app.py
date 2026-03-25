@@ -16,3 +16,11 @@ def health():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+@app.route('/api/status')
+def status():
+    return jsonify({
+        "status": "running",
+        "environment": os.getenv('ENVIRONMENT', 'development'),
+        "pod": socket.gethostname()
+    })
