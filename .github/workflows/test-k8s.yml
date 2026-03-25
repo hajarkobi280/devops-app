@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,20 +26,18 @@ jobs:
         eval $(minikube docker-env)
         docker build -t devops-app:latest .
     
-    - name: Deploy with your manifest
+    - name: Deploy
       run: |
-        # Utiliser ton fichier de déploiement
         kubectl apply -f k8s/deployment.yaml
         kubectl wait --for=condition=ready pods --all --timeout=120s
         kubectl get pods
-        kubectl get svc
     
     - name: Test endpoints
       run: |
         kubectl port-forward service/devops-app-service 8080:80 &
         sleep 10
-        echo "Testing / endpoint..."
+        echo "Testing /..."
         curl -f http://localhost:8080
-        echo "Testing /health endpoint..."
-        curl -f http://localhost:8080/health || echo "Health endpoint not implemented"
+        echo "Testing /health..."
+        curl -f http://localhost:8080/health
         echo "✅ All tests passed!"
