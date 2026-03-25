@@ -16,37 +16,24 @@ jobs:
       uses: medyagh/setup-minikube@latest
       with:
         driver: docker
+        kubernetes-version: v1.27.3
     
     - name: Build image in Minikube
       run: |
         eval $(minikube docker-env)
         docker build -t devops-app:latest .
-        docker images | grep devops-app
     
-    - name: Create deployment
+    - name: Deploy app
       run: |
-        # Créer le déploiement directement avec kubectl
-        kubectl create deployment test-app --image=devops-app:latest --port=5000
-        kubectl expose deployment test-app --port=80 --target-port=5000 --type=ClusterIP
-        
-        # Attendre que les pods soient prêts
+        kubectl create deployment devops-app --image=devops-app:latest --port=5000
+        kubectl expose deployment devops-app --port=80 --target-port=5000 --type=ClusterIP
         kubectl wait --for=condition=ready pods --all --timeout=120s
-        
-        # Afficher le statut
         kubectl get pods
         kubectl get svc
     
-    - name: Test application
+    - name: Test app
       run: |
-        # Faire un port-forward
-        kubectl port-forward service/test-app 8080:80 &
-        sleep 15
-        
-        # Tester l'application
-        if curl -f http://localhost:8080; then
-          echo "✅ Kubernetes test passed!"
-        else
-          echo "❌ Test failed"
-          kubectl logs -l app=test-app
-          exit 1
-        fi
+        kubectl port-forward service/devops-app 8080:80 &
+        sleep 10
+        curl -f http://localhost:8080
+        echo "✅ Kubernetes test passed!"
