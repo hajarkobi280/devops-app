@@ -21,14 +21,29 @@ jobs:
         version: v0.20.0
         node_image: kindest/node:v1.27.3
         wait: 120s
+        config: |
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+    
+    - name: Verify cluster
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+        kubectl get pods -A
     
     - name: Build Docker Image
       run: |
         docker build -t devops-app:latest .
+        docker images | grep devops-app
     
     - name: Load Image to Kind
       run: |
-        kind load docker-image devops-app:latest
+        kind get clusters
+        kind load docker-image devops-app:latest --name kind
     
     - name: Deploy
       run: |
@@ -37,7 +52,7 @@ jobs:
         
         # Attendre les pods
         echo "Waiting for pods to be ready..."
-        kubectl wait --for=condition=ready pods --all --timeout=120s
+        kubectl wait --for=condition=ready pods --all --timeout=180s
         
         # Afficher le statut
         kubectl get pods
@@ -49,11 +64,29 @@ jobs:
         kubectl port-forward service/devops-app-service 8080:80 &
         sleep 15
         
-        # Tester
-        if curl -f http://localhost:8080; then
-          echo "✅ Deployment successful!"
-        else
-          echo "❌ Test failed"
-          kubectl logs -l app=devops-app
-          exit 1
-        fi
+        # Tester avec retry
+        for i in {1..5}; do
+          if curl -f http://localhost:8080; then
+            echo "✅ Deployment successful!"
+            exit 0
+          fi
+          echo "Attempt $i failed, retrying..."
+          sleep 5
+        done
+        echo "❌ Test failed after 5 attempts"
+        kubectl logs -l app=devops-app
+        exit 1
+    
+    - name: Debug on failure
+      if: failure()
+      run: |
+        echo "=== Kind clusters ==="
+        kind get clusters
+        echo "=== Nodes ==="
+        kubectl get nodes -o wide
+        echo "=== All pods ==="
+        kubectl get pods -A
+        echo "=== Events ==="
+        kubectl get events --all-namespaces
+        echo "=== Pod details ==="
+        kubectl describe pods -l app=devops-app || echo "No pods found"
