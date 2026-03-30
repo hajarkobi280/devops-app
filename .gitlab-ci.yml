@@ -1,39 +1,44 @@
-stages:
-  - build
-  - test
-  - deploy
+name: CI/CD Pipeline
 
-variables:
-  IMAGE_NAME: hajarkobi/devops-app
-  IMAGE_TAG: latest
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-build:
-  stage: build
-  image: docker:24
-  services:
-    - docker:24-dind
-  script:
-    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-    - docker build -t $IMAGE_NAME:$IMAGE_TAG .
-    - docker push $IMAGE_NAME:$IMAGE_TAG
-  only:
-    - main
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-test:
-  stage: test
-  image: python:3.11-slim
-  script:
-    - pip install flask pytest
-    - python -m pytest tests/ -v || echo "No tests found"
-  only:
-    - main
+      - name: Setup Minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          # On force la version 1.28.0 pour éviter l'erreur K8S_OLD_UNSUPPORTED
+          kubernetes-version: 'v1.28.0'
+          driver: docker
 
-deploy:
-  stage: deploy
-  image: bitnami/kubectl:latest
-  script:
-    - echo "$KUBECONFIG_CONTENT" > kubeconfig.yaml
-    - kubectl --kubeconfig=kubeconfig.yaml apply -f k8s/deployment.yaml --validate=false
-    - kubectl --kubeconfig=kubeconfig.yaml get pods
-  only:
-    - main
+      - name: Build image inside Minikube
+        run: |
+          # On lie le docker local à minikube
+          eval $(minikube -p minikube docker-env)
+          docker build -t myapp:latest .
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f deployment.yaml
+          kubectl apply -f service.yaml
+
+      - name: Wait for Pods to be Ready
+        run: |
+          # Cette étape attend que Flask soit vraiment prêt avant de continuer
+          kubectl rollout status deployment/flask-app-deployment --timeout=90s
+
+      - name: Test the Application
+        run: |
+          # On vérifie que l'app répond "Hello"
+          NODE_IP=$(minikube ip)
+          NODE_PORT=$(kubectl get svc flask-app-service -o jsonpath='{.spec.ports[0].nodePort}')
+          curl -s http://$NODE_IP:$NODE_PORT | grep "Hello"
