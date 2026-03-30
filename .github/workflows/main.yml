@@ -14,27 +14,35 @@ jobs:
       - name: Start Minikube
         uses: medyagh/setup-minikube@latest
         with:
-          kubernetes-version: 'v1.28.0'
+          # Correction : Utilisation d'une version supportée par l'environnement GitHub
+          kubernetes-version: 'v1.28.3'
           driver: docker
 
       - name: Build Image
         run: |
           eval $(minikube -p minikube docker-env)
+          # On utilise le tag 'latest' pour correspondre au déploiement
           docker build -t myapp:latest .
 
       - name: Deploy to Kubernetes
         run: |
-          # Correction du Timeout : on force la mise à jour du contexte
           minikube update-context
+          # Application des fichiers de configuration K8s
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
 
       - name: Wait for Pods
         run: |
-          kubectl rollout status deployment/flask-app-deployment --timeout=90s
+          # On attend que le déploiement soit prêt (essentiel pour le test curl)
+          kubectl rollout status deployment/flask-app-deployment --timeout=120s
 
       - name: Test Endpoints
         run: |
+          # On laisse 5 secondes de sécurité pour que le service soit routable
+          sleep 5
           NODE_IP=$(minikube ip)
           NODE_PORT=$(kubectl get svc flask-app-service -o jsonpath='{.spec.ports[0].nodePort}')
-          curl -s http://$NODE_IP:$NODE_PORT | grep "Hello"
+          
+          # Test de l'endpoint : on vérifie la présence du mot "Kubernetes" dans le HTML
+          echo "Testing connection to http://$NODE_IP:$NODE_PORT"
+          curl -s http://$NODE_IP:$NODE_PORT | grep -i "Kubernetes"

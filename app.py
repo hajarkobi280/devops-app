@@ -39,12 +39,12 @@ BASE_HTML = """
 <body>
     <nav class="navbar navbar-dark mb-0">
         <div class="container">
-            <span class="navbar-brand mb-0 h1">🚀 Cloud & Big Data Architecture</span>
+            <span class="navbar-brand mb-0 h1">Cloud & Big Data Architecture</span>
         </div>
     </nav>
     {% block content %}{% endblock %}
     <footer class="text-center mt-5 pb-4 text-muted">
-        <small>Projet Master BD2C - Faculté des Sciences Aïn Chock © 2026</small>
+        <small>Projet Master DSBD - Faculté des Sciences Ben M'sik-kobi Hajar-Benmijou Maroua © 2026</small>
     </footer>
 </body>
 </html>
