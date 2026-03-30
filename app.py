@@ -21,6 +21,7 @@ def get_db_connection():
 
 @app.route('/')
 def hello():
+    print("MAROUA HA HA HA HA")
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -40,6 +41,5 @@ def hello():
         
     except Exception as e:
         return f"Erreur de connexion DB : {e}"
-print("MAROUA HA HA HA HA HA HA HA HA ")
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
