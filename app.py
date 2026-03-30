@@ -24,13 +24,22 @@ def hello():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('SELECT version();')
-        db_version = cur.fetchone()
+        
+        # 1. On INSÈRE une nouvelle visite
+        cur.execute("INSERT INTO visits (ts) VALUES (now());")
+        conn.commit() # Très important pour sauvegarder l'insertion !
+        
+        # 2. On COMPTE le nombre total de visites pour l'afficher
+        cur.execute("SELECT COUNT(*) FROM visits;")
+        count = cur.fetchone()[0]
+        
         cur.close()
         conn.close()
-        return f"Hello from Kubernetes! Connected to: {db_version[0]}"
+        
+        return f"Hello from Kubernetes! Nombre total de visites enregistrées : {count}"
+        
     except Exception as e:
-        return f"Hello from Kubernetes! (But DB connection failed: {e})"
+        return f"Erreur de connexion DB : {e}"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
