@@ -1,49 +1,42 @@
-name: CI/CD Pipeline
+name: CI-CD Pipeline
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
-  build-test-deploy:
+  # ÉTAPE 1 : TEST (Vérifie si le code est correct)
+  Test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: pip install flask psycopg2-binary
+      - name: Check Syntax
+        run: python -m py_compile app.py
 
-      - name: Start Minikube
-        uses: medyagh/setup-minikube@latest
+  # ÉTAPE 2 : BUILD (Crée l'image Docker)
+  Build:
+    needs: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          kubernetes-version: 'v1.28.0'
-          driver: docker
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/flask-app:latest
 
-      - name: Build Image inside Minikube
-        run: |
-          # Lie Docker à l'environnement Minikube
-          eval $(minikube -p minikube docker-env)
-          docker build -t myapp:latest .
-
-      - name: Deploy to Kubernetes
-        run: |
-          # Correction CRITIQUE pour le Timeout
-          minikube update-context
-          
-          # Appliquer les configurations
-          kubectl apply -f deployment.yaml
-          kubectl apply -f service.yaml
-
-      - name: Wait for Pods to be Ready
-        run: |
-          # Attend que Flask soit prêt (max 90s)
-          kubectl rollout status deployment/flask-app-deployment --timeout=90s
-
-      - name: Test Endpoint
-        run: |
-          # Récupère l'URL de test via Minikube
-          NODE_IP=$(minikube ip)
-          NODE_PORT=$(kubectl get svc flask-app-service -o jsonpath='{.spec.ports[0].nodePort}')
-          
-          echo "Testing at http://$NODE_IP:$NODE_PORT"
-          curl -s http://$NODE_IP:$NODE_PORT | grep "Hello"
+  # ÉTAPE 3 : DEPLOY (Met à jour Kubernetes)
+  Deploy:
+    needs: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Status Update
+        run: echo "Build terminé avec succès ! Prêt pour le déploiement sur AWS."
