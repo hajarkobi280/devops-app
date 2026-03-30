@@ -1,0 +1,40 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          kubernetes-version: 'v1.28.0'
+          driver: docker
+
+      - name: Build Image
+        run: |
+          eval $(minikube -p minikube docker-env)
+          docker build -t myapp:latest .
+
+      - name: Deploy to Kubernetes
+        run: |
+          # Correction du Timeout : on force la mise à jour du contexte
+          minikube update-context
+          kubectl apply -f deployment.yaml
+          kubectl apply -f service.yaml
+
+      - name: Wait for Pods
+        run: |
+          kubectl rollout status deployment/flask-app-deployment --timeout=90s
+
+      - name: Test Endpoints
+        run: |
+          NODE_IP=$(minikube ip)
+          NODE_PORT=$(kubectl get svc flask-app-service -o jsonpath='{.spec.ports[0].nodePort}')
+          curl -s http://$NODE_IP:$NODE_PORT | grep "Hello"
