@@ -44,7 +44,7 @@ BASE_HTML = """
     </nav>
     {% block content %}{% endblock %}
     <footer class="text-center mt-5 pb-4 text-muted">
-        <small>Projet Master DSBD - Faculté des Sciences Ben M'sik-kobi Hajar-Benmijou Maroua © 2026</small>
+        <small>Projet Master DSBD - Fsbm-kobi Hajar-Benmijou Maroua © 2026</small>
     </footer>
 </body>
 </html>
