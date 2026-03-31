@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: flask-app
-        image: hajarkobi/flask-app:latest  # <--- Correction faite ici !
+        image: myapp:latest  # <--- Correction faite ici !
         imagePullPolicy: Always
         ports:
         - containerPort: 5000

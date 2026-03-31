@@ -63,7 +63,7 @@ def index():
     content = f"""
     <div class="hero-section text-center">
         <div class="container">
-            <h1 class="display-4 fw-bold">Système Distribué Kubernetes</h1>
+            <h1 class="display-4 fw-bold">Projet Devops  Kubernetes</h1>
             <p class="lead">Dashboard d'analyse en temps réel</p>
         </div>
     </div>
